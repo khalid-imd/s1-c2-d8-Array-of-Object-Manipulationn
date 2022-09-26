@@ -31,6 +31,10 @@ func main() {
 
 	route.HandleFunc("/delete/{index}", delete).Methods("GET")
 
+	route.HandleFunc("/edit/{index}", edit).Methods("GET")
+
+	route.HandleFunc("/editButton/{id}", editButton).Methods("POST")
+
 	route.HandleFunc("/detail/{index}", detail).Methods("GET")
 
 	fmt.Println("server is Running")
@@ -139,6 +143,7 @@ type Project struct {
 	JavaScript  string
 	React       string
 	Node        string
+	Id          int
 }
 
 var projectData = []Project{}
@@ -193,6 +198,7 @@ func submit(w http.ResponseWriter, r *http.Request) {
 		JavaScript:  javaScript,
 		React:       react,
 		Node:        nodejs,
+		Id:          len(projectData),
 	}
 	projectData = append(projectData, newProject)
 
@@ -203,4 +209,102 @@ func delete(w http.ResponseWriter, r *http.Request) {
 	index, _ := strconv.Atoi(mux.Vars(r)["index"])
 	projectData = append(projectData[:index], projectData[index+1:]...)
 	http.Redirect(w, r, "/home", http.StatusFound)
+}
+
+func edit(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset-utf8")
+
+	var tmplt, err = template.ParseFiles("pages/project-edit.html")
+
+	if err != nil {
+		w.Write([]byte("file doesn't exist: " + err.Error()))
+		return
+	}
+
+	var DetailProject = Project{}
+
+	index, _ := strconv.Atoi(mux.Vars(r)["index"])
+
+	for i, project := range projectData {
+		if i == index {
+			DetailProject = Project{
+				Title:       project.Title,
+				Description: project.Description,
+				StartDate:   project.StartDate,
+				EndDate:     project.EndDate,
+				Duration:    project.Duration,
+				Golang:      project.Golang,
+				JavaScript:  project.JavaScript,
+				React:       project.React,
+				Node:        project.Node,
+			}
+		}
+	}
+
+	data := map[string]interface{}{
+		"ProjectEdit": DetailProject,
+	}
+
+	// w.Write([]byte("home"))
+	//w.WriteHeader(http.StatusAccepted)
+	tmplt.Execute(w, data)
+}
+
+func editButton(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+
+	http.Redirect(w, r, "/home", http.StatusMovedPermanently)
+
+	title := r.PostForm.Get("addTitle")
+	startDate := r.PostForm.Get("addStartDate")
+	endDate := r.PostForm.Get("addEndDate")
+	description := r.PostForm.Get("addDescription")
+
+	golang := r.PostForm.Get("addGolang")
+	javaScript := r.PostForm.Get("addJavaScript")
+	react := r.PostForm.Get("addReact")
+	nodejs := r.PostForm.Get("addNode")
+
+	layout := "2006-01-02"
+	parsingstartdate, _ := time.Parse(layout, startDate)
+	parsingenddate, _ := time.Parse(layout, endDate)
+
+	hours := parsingenddate.Sub(parsingstartdate).Hours()
+	days := hours / 24
+	// weeks := math.Round(days / 7)
+	// month := math.Round(days / 30)
+	// year := math.Round(days / 365)
+
+	var duration string
+	// if year > 0 {
+	// 	duration = strconv.FormatFloat(year, 'f', 0, 64) + " years"
+	// } else if month > 0 {
+	// 	duration = strconv.FormatFloat(month, 'f', 0, 64) + " month"
+	// } else if weeks > 0 {
+	// 	duration = strconv.FormatFloat(weeks, 'f', 0, 64) + " weeks"
+	// } else
+	if days > 0 {
+		duration = strconv.FormatFloat(days, 'f', 0, 64) + " days"
+	}
+
+	newProject := Project{
+		Title:       title,
+		StartDate:   startDate,
+		EndDate:     endDate,
+		Duration:    duration,
+		Description: description,
+		Golang:      golang,
+		JavaScript:  javaScript,
+		React:       react,
+		Node:        nodejs,
+		Id:          id,
+	}
+	projectData[id] = newProject
+
+	// fmt.Println(projectData)
 }
